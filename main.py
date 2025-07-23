@@ -1,4 +1,4 @@
-from PIL import Image
+from PIL import Image, ImageEnhance
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,11 +11,14 @@ from matplotlib.widgets import Button
 
 listOfPoints = []
 circles = []
-mask_color = (57, 237, 222, 255)  # RGBA color for the mask
+mask_color = (48, 252, 215, 255)  # RGBA color for the mask
 cur_pic = 0
 finished = False
 count_of_pics = 0
 path_to_pics = ""
+path_for_Saving = "Masks"
+pixelPickerActive = False
+selectedPixel = (0, 0)
 
 def load_new_picture(path):
     original_img = Image.open(path)
@@ -42,11 +45,17 @@ def clearClickedPoints():
                 return True, circle
     return False, None
 
-def drawCircle(x, y, radius=10):
+def drawCircle(x, y, radius=10, color='red', marker=False):
     global ax, fig
-    circle = Circle((x, y), radius, color='red', fill=False)
-    circles.append(circle)
-    ax.add_patch(circle)
+    if(marker):
+        
+        circle = Circle((x, y), radius, color=color, fill=True)
+        ax.add_patch(circle)
+    else:
+        
+        circle = Circle((x, y), radius, color=color, fill=False)
+        circles.append(circle)
+        ax.add_patch(circle)
     
 def updateClickedPoints(x, y):
     listOfPoints.append([x, y])
@@ -59,8 +68,9 @@ def updateLines():
     plt.draw()
 
 def clearEverything():
+    global orignal, mask, ax
     ax.clear()
-    ax.imshow(Image.alpha_composite(original, mask))
+    
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
 
@@ -76,12 +86,12 @@ def redrawLinesCircles():
     plt.draw()
 
 def maskCompletet():
-    global finished, listOfPoints, circles, ax, cur_pic
+    global finished, listOfPoints, circles, ax, cur_pic, mask
     
     clearEverything()
     
     cur_pic -= 1
-    original, mask = load_new_picture(getPath(path_to_pics))
+    original, new_mask = load_new_picture(getPath(path_to_pics))
 
     mask = cv2.fillPoly(img = np.array(mask), pts = [np.array(listOfPoints, np.int32)], color=mask_color)
     
@@ -98,39 +108,50 @@ def maskCompletet():
     finished = True
 
 def onclick(event):
-    global ix, iy, listOfPoints
+    global ix, iy, listOfPoints, pixelPickerActive, selectedPixel
 
     # Ignore clicks outside the axes (e.g., on the button)
     if event.inaxes != ax:
         return
-
     ix, iy = event.xdata, event.ydata
-    isInside, circle = clearClickedPoints()
-    if(isInside):
-        circles.remove(circle)
-        listOfPoints.clear()
-        listOfPoints = [c.center for c in circles]
-        
-        redrawLinesCircles()
+    if(pixelPickerActive):
+        selectedPixel = (ix, iy)
+        drawCircle(ix, iy, radius=5, color='green', marker=True)
+        select_button.label.set_text(f"{int(round(ix))}, {int(round(iy))}")
+        pixelPickerActive = False
     else:
-        if circle is None:
-            updateClickedPoints(ix, iy)
-            if len(listOfPoints) == 1:
-                listOfPoints.append([ix, iy])
-            else:
-                updateLines()
-            drawCircle(ix, iy)
+        
+        isInside, circle = clearClickedPoints()
+        if(isInside):
+            circles.remove(circle)
+            listOfPoints.clear()
+            listOfPoints = [c.center for c in circles]
+            
+            redrawLinesCircles()
         else:
-            maskCompletet()
-    
+            if circle is None:
+                updateClickedPoints(ix, iy)
+                if len(listOfPoints) == 1:
+                    listOfPoints.append([ix, iy])
+                else:
+                    updateLines()
+                drawCircle(ix, iy)
+            else:
+                maskCompletet()
+        
 def save(event):
     global finished, mask, original
     if finished:
-        mask.save("mask.png")
-        print("Saved mask and original image.")
+        img_enhancer = ImageEnhance.Brightness(mask)
+        bright_mask = img_enhancer.enhance(300)
+        black_mask = Image.new("RGBA", mask.size, (0, 0, 0, 255))
+        composited_image = Image.alpha_composite(black_mask, bright_mask)
+        composited_image.save(f"{path_for_Saving}/{cur_pic - 1}.png")
+        with open(f"{path_for_Saving}/{cur_pic - 1}_1.txt", "a") as f:
+            f.write(f"{int(round(selectedPixel[0]))}\n{int(round(selectedPixel[1]))}")
+        print("Saved mask and Pixel image.")
     else:
         print("Mask is not complete. Cannot save.")
-    plt.close()
 
 def clear(event):
     global finished, mask, original, listOfPoints, circles, ax, cur_pic, path_to_pics
@@ -162,7 +183,7 @@ def getPath(path):
         quit()
          
 def previousPicture(event):
-    global cur_pic, path_to_pics
+    global cur_pic, path_to_pics, mask
     if(cur_pic > 1):
         cur_pic -= 2
         path = getPath(path_to_pics)
@@ -176,7 +197,7 @@ def previousPicture(event):
         plt.draw()
 
 def nextPicture(event):
-    global cur_pic, count_of_pics, path_to_pics
+    global cur_pic, count_of_pics, path_to_pics, mask
     if(cur_pic != count_of_pics):
         path = getPath(path_to_pics)
         original, mask = load_new_picture(path)
@@ -187,6 +208,10 @@ def nextPicture(event):
         ax.set_ylim(composited_image.height, 0)  # Flip y-axis for correct orientation
         ax.imshow(composited_image)
         plt.draw()
+
+def selectPixel(event):
+    global pixelPickerActive
+    pixelPickerActive = True
 
 if __name__ == "__main__":
     print("Up and running!")
@@ -232,6 +257,9 @@ if __name__ == "__main__":
     next_button = Button(buttonn_ax, 'Next')
     next_button.on_clicked(nextPicture)
 
+    buttons_ax = fig.add_axes([0.41, 0.01, 0.17, 0.05])  # [left, bottom, width, height]
+    select_button = Button(buttons_ax, selectedPixel)
+    select_button.on_clicked(selectPixel)
+
     plt.draw()
     plt.show(block=True)
-    
