@@ -76,11 +76,13 @@ def redrawLinesCircles():
     plt.draw()
 
 def maskCompletet():
-    global finished, listOfPoints, circles, mask, ax, original
+    global finished, listOfPoints, circles, ax, cur_pic
     
     clearEverything()
     
-   
+    cur_pic -= 1
+    original, mask = load_new_picture(getPath(path_to_pics))
+
     mask = cv2.fillPoly(img = np.array(mask), pts = [np.array(listOfPoints, np.int32)], color=mask_color)
     
     mask = Image.fromarray(mask)
