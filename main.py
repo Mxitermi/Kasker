@@ -213,14 +213,33 @@ def selectPixel(event):
     global pixelPickerActive
     pixelPickerActive = True
 
+def connectLast(event):
+    maskCompletet()
+
+def rename(path):
+    i = 0
+    for filename in os.listdir(path):
+        new_name = str(i) + ".jpg"
+        i += 1
+        os.rename(os.path.join(path, filename), os.path.join(path, new_name))
+        print(f"Renamed '{filename}' to '{new_name}'")
+    print("Renaming completed.")
+
 if __name__ == "__main__":
     print("Up and running!")
+    print("Do you want to create Masks or Rename the Folder? 0 (Default) (Mask) 1 (Rename) \n")
     print("Please type in the path to the folder which contains the pictures you want to label.\nIf you want to use the default folder (test_pictures/), just press enter.")
     path = "test_pictures/"
     path = input("Path to picture: ") or path
     path_to_pics = path
-    path = getPath(path)
     
+
+    print("Do you want to create Masks or Rename the Folder? 0 (Default) (Mask) 1 (Rename) \n")
+    choice = input("Choice: ") or "0"
+    if(choice == "1"):
+        rename(path)
+        quit()
+    path = getPath(path)
     original, mask = load_new_picture(path)
     plt.ion()    
     
@@ -260,6 +279,10 @@ if __name__ == "__main__":
     buttons_ax = fig.add_axes([0.41, 0.01, 0.17, 0.05])  # [left, bottom, width, height]
     select_button = Button(buttons_ax, selectedPixel)
     select_button.on_clicked(selectPixel)
+
+    buttonc_ax = fig.add_axes([0.41, 0.9, 0.17, 0.05])  # [left, bottom, width, height]
+    connect_button = Button(buttonc_ax, "Connect Last")
+    connect_button.on_clicked(connectLast)
 
     plt.draw()
     plt.show(block=True)
