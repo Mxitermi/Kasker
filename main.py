@@ -147,7 +147,7 @@ def save(event):
         black_mask = Image.new("RGBA", mask.size, (0, 0, 0, 255))
         composited_image = Image.alpha_composite(black_mask, bright_mask)
         composited_image.save(f"{path_for_Saving}/{cur_pic - 1}.png")
-        with open(f"{path_for_Saving}/{cur_pic - 1}_1.txt", "a") as f:
+        with open(f"{path_to_pics}/{cur_pic - 1}_1.txt", "w", encoding="utf-8") as f:
             f.write(f"{int(round(selectedPixel[0]))}\n{int(round(selectedPixel[1]))}")
         print("Saved mask and Pixel image.")
     else:
@@ -216,28 +216,93 @@ def selectPixel(event):
 def connectLast(event):
     maskCompletet()
 
-def rename(path):
-    i = 0
-    for filename in os.listdir(path):
-        new_name = str(i) + ".jpg"
-        i += 1
-        os.rename(os.path.join(path, filename), os.path.join(path, new_name))
+def rename_anyway(path, start_index=0):
+    # Nur .png-Dateien nehmen und nach Zahl im Namen sortieren
+    files = [f for f in os.listdir(path) if f.endswith(".jpg")]
+
+    for i, filename in enumerate(files, start=start_index):
+        new_name = f"{i}.jpg"
+        old_path = os.path.join(path, filename)
+        new_path = os.path.join(path, new_name)
+        os.rename(old_path, new_path)
         print(f"Renamed '{filename}' to '{new_name}'")
+    
     print("Renaming completed.")
+
+
+def rename(path, start_index=0):
+    # Nur .png-Dateien nehmen und nach Zahl im Namen sortieren
+    files = [f for f in os.listdir(path) if f.endswith(".png")]
+    files.sort(key=lambda x: int(os.path.splitext(x)[0]))  # sortiere numerisch
+
+    for i, filename in enumerate(files, start=start_index):
+        new_name = f"{i}.png"
+        old_path = os.path.join(path, filename)
+        new_path = os.path.join(path, new_name)
+        os.rename(old_path, new_path)
+        print(f"Renamed '{filename}' to '{new_name}'")
+    
+    print("Renaming completed.")
+
+def rename_image_and_txt_pairs(path, start_index=0):
+    # Nur JPG-Dateien holen, die KEIN "_n_1" im Namen haben
+    jpg_files = [f for f in os.listdir(path) if f.endswith(".jpg") and "_1" not in f]
+    
+    # Nach der Zahl im Dateinamen sortieren
+    jpg_files.sort(key=lambda x: int(os.path.splitext(x)[0]))
+
+    for i, jpg_name in enumerate(jpg_files, start=start_index):
+        base_name = os.path.splitext(jpg_name)[0]
+        txt_name = f"{base_name}_1.txt"
+
+        new_jpg_name = f"{i}.jpg"
+        new_txt_name = f"{i}_1.txt"
+
+        # Alte und neue Pfade bauen
+        old_jpg_path = os.path.join(path, jpg_name)
+        new_jpg_path = os.path.join(path, new_jpg_name)
+
+        old_txt_path = os.path.join(path, txt_name)
+        new_txt_path = os.path.join(path, new_txt_name)
+
+        # JPG umbenennen
+        os.rename(old_jpg_path, new_jpg_path)
+        print(f"Renamed '{jpg_name}' to '{new_jpg_name}'")
+
+        # TXT umbenennen, wenn vorhanden
+        if os.path.exists(old_txt_path):
+            os.rename(old_txt_path, new_txt_path)
+            print(f"Renamed '{txt_name}' to '{new_txt_name}'")
+        else:
+            print(f"TXT-Datei nicht gefunden für '{jpg_name}'")
+
+    print("Renaming completed.")
+
 
 if __name__ == "__main__":
     print("Up and running!")
-    print("Do you want to create Masks or Rename the Folder? 0 (Default) (Mask) 1 (Rename) \n")
     print("Please type in the path to the folder which contains the pictures you want to label.\nIf you want to use the default folder (test_pictures/), just press enter.")
     path = "test_pictures/"
     path = input("Path to picture: ") or path
     path_to_pics = path
     
 
-    print("Do you want to create Masks or Rename the Folder? 0 (Default) (Mask) 1 (Rename) \n")
+    print("Do you want to create Masks or Rename the Folder? 0 (Default) (Mask) 1 (Rename normal) 2 (Rename with TxT) 3 (RA)\n")
     choice = input("Choice: ") or "0"
     if(choice == "1"):
-        rename(path)
+        print("Where do you want to start? \n")
+        choice = input("Choice: ") or "0"
+        rename(path, int(choice))
+        quit()
+    elif(choice == "2"):
+        print("Where do you want to start? \n")
+        choice = input("Choice: ") or "0"
+        rename_image_and_txt_pairs(path, int(choice))
+        quit()
+    elif(choice == "3"):
+        print("Where do you want to start? \n")
+        choice = input("Choice: ") or "0"
+        rename_anyway(path, int(choice))
         quit()
     path = getPath(path)
     original, mask = load_new_picture(path)
